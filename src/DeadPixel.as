@@ -8,6 +8,7 @@ import flash.events.MouseEvent;
 import flash.sampler.NewObjectSample;
 import flash.system.Capabilities;
 import flash.text.TextField;
+import flash.utils.getTimer;
 import flash.utils.setTimeout;
 
 public class DeadPixel extends Sprite
@@ -15,8 +16,9 @@ public class DeadPixel extends Sprite
         private var bmd:BitmapData;
         private var surroundCoords:Array = [[-1, -1], [-1, 0], [-1, 1],
                                             [0, -1], [0, 1],
-                                            [1, -1], [1, 0], [1, 1]];
+                                            [1, -1], [1, 0], [1, 1]]; //
 
+        private var infectedPixels:Array = [];
 
 
         public function DeadPixel()
@@ -53,22 +55,62 @@ public class DeadPixel extends Sprite
             var infected:Object = {"x" : randomX, "y" : randomY};
             bitmap.bitmapData.setPixel(infected.x, infected.y, 0xFF0000);
 
-            infectNeighbours(infected);
+            infectedPixels.push([infected.x, infected.y]);
+
+            infectNeighbours();
         }
 
-        private function infectNeighbours(infectedPixel:Object) : void
+        private function infectNeighbours() : void
         {
-            var index:int = Math.random() * 8;
-            var newX:int = surroundCoords[index][0] + infectedPixel.x;
-            var newY:int = surroundCoords[index][1] + infectedPixel.y;
-            var newInfectedPixel:Object = {"x" : surroundCoords[index][0] + infectedPixel.x, "y": surroundCoords[index][1] + infectedPixel.y};
-            bmd.setPixel(infectedPixel.x, infectedPixel.y, 0xFF0000);
+            var s:Number = getTimer();
+            var iterablePixels:Array = infectedPixels.concat();
 
-            trace("infecting: " + newInfectedPixel.x + " and " + newInfectedPixel.y);
+            for each(var currentPixel:Array in iterablePixels)
+            {
+//                trace("Pixels: " + iterablePixels.length);
+                var alreadyInfected:Boolean = true;
+                var surroundPixels:Array = surroundCoords.concat();
+                while (alreadyInfected && surroundPixels.length > 0)
+                {
+                    var index:int = Math.random() * surroundPixels.length;
+                    var newX:int = surroundCoords[index][0] + currentPixel[0];
+                    var newY:int = surroundCoords[index][1] + currentPixel[1];
+
+                    if(newX < 0) newX = 0;
+                    if(newY < 0) newY = 0;
+                    if(newX > bmd.width) newX = bmd.width;
+                    if(newY > bmd.height) newY = bmd.height;
+
+                    if (bmd.getPixel(newX, newY) == 0xFF0000)
+                    {
+                        surroundPixels.splice(index, 1);
+                    }
+                    else
+                    {
+                        alreadyInfected = false;
+                    }
+                }
+
+                if(surroundPixels.length != 0)
+                {
+                    var newInfectedPixel:Object = {"x" : newX, "y": newY};
+                    bmd.setPixel(newInfectedPixel.x, newInfectedPixel.y, 0xFF0000);
+
+//                    trace("infecting: " + newInfectedPixel.x + " and " + newInfectedPixel.y);
+
+                    infectedPixels.push([newInfectedPixel.x, newInfectedPixel.y]);
+                }
+                else
+                {
+                    infectedPixels.splice(infectedPixels.indexOf(currentPixel), 1);
+                }
+            }
 
             setTimeout(function() : void {
-                infectNeighbours(newInfectedPixel);
-            }, 1);
+                infectNeighbours();
+            }, 50);
+
+            trace("TIME TAKEN: " + (getTimer() - s));
         }
     }
 
